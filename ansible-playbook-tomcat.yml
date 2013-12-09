@@ -1,0 +1,30 @@
+---
+- hosts: "{{systype}}-tomcats"
+  user: root
+  serial: 1
+  vars_files:
+    - "/home/sla/files/{{systype}}.yml"
+  tasks:
+  - action: debug msg="{{ lookup('env','JAVA_HOME') }} is a local environment variable"
+  - name: Stop Tomcat
+    service: name=tomcat state=stopped pattern=tomcat7
+  - name: Remove old tomcat
+    command: /bin/rm -rf /opt/tomcat7
+  - name: Copy Tomcat
+    copy: src=/home/sla/files/tomcat7.tar.gz dest=/opt/tomcat7.tar.gz
+  - name: Unpack Tomcat
+    command: /bin/tar -zxvf /opt/tomcat7.tar.gz -C /opt
+  - name: Rename package
+    command: /bin/mv /opt/apache-tomcat-7.0.40 /opt/tomcat7
+  - name: Remove tar
+    command: /bin/rm  /opt/tomcat7.tar.gz
+  - name: Install server.xml
+    template: src=/home/sla/files/server.xml dest=/opt/tomcat7/conf/server.xml
+  - name: Install context.xml
+    template: src=/home/sla/files/context.xml dest=/opt/tomcat7/conf/context.xml
+  - name: Install init script
+    template: src=/home/sla/files/tomcat.init dest=/etc/init.d/tomcat mode=0755
+  - name: Install war files
+    local_action: command rsync -a /home/sla/files/war/ root@{{inventory_hostname}}:/opt/tomcat7/webapps/
+  - name: Start Tomcat
+    service: name=tomcat state=started pattern=tomcat7

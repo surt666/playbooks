@@ -1,0 +1,24 @@
+---
+# file: roles/tomcat/tasks/main.yml
+- name: Stop Tomcat
+  service: name=tomcat state=stopped pattern=tomcat7
+  ignore_errors: true
+#- name: Remove old tomcat
+#  command: /bin/rm -rf /opt/tomcat7
+- name: Copy Tomcat
+  copy: src=tomcat7.tar.gz dest=/opt/tomcat7.tar.gz
+- name: Unpack Tomcat
+  command: /bin/tar -zxvf /opt/tomcat7.tar.gz -C /opt
+- name: Rename package
+  command: /bin/mv /opt/apache-tomcat-7.0.40 /opt/tomcat7
+- name: Remove tar
+  command: /bin/rm  /opt/tomcat7.tar.gz
+  ignore_errors: true
+- name: Install server.xml
+  template: src=server.xml.j2 dest=/opt/tomcat7/conf/server.xml
+- name: Install context.xml
+  template: src=context.xml.j2 dest=/opt/tomcat7/conf/context.xml
+- name: Install init script
+  copy: src=tomcat.init dest=/etc/init.d/tomcat mode=0755
+- name: Start Tomcat
+  service: name=tomcat state=started pattern=tomcat7 enabled=yes

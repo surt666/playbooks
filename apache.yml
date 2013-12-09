@@ -1,0 +1,8 @@
+---
+# file: apache.yml
+- hosts: tomcats
+  user: root
+  serial: 1
+  roles:
+    - apache
+

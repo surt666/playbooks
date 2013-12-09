@@ -1,0 +1,10 @@
+---
+# file: build.yml
+- hosts: tomcats
+  user: root
+  serial: 1
+  vars:
+    abs_dir: /home/m00522/abs
+  roles:
+    - build
+

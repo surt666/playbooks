@@ -1,0 +1,132 @@
+---
+# file: roles/build/tasks/main.yml
+- name: create project dir
+  local_action: command mkdir -p {{abs_dir}}/{{project}}
+
+- name: create project latest file
+  local_action: command touch {{abs_dir}}/{{project}}/latest
+
+- name: create project latestbuild file
+  local_action: command touch {{abs_dir}}/{{project}}/latestbuild
+
+- name: get commit hash
+  local_action: shell git ls-remote git@github.com:YouSee/{{project}}.git | head -1 | sed "s/HEAD//" > {{abs_dir}}/{{project}}/current
+
+- name: read current hash
+  local_action: command cat {{abs_dir}}/{{project}}/current
+  register: current
+
+- name: read latest hash
+  local_action: command cat {{abs_dir}}/{{project}}/latest
+  register: latest
+
+- name: read last build
+  local_action: command cat {{abs_dir}}/{{project}}/latestbuild
+  register: latestbuild
+
+- name: update build number
+  local_action: shell echo $(( {{latestbuild.stdout}} + 1 )) > {{abs_dir}}/{{project}}/latestbuild
+  when: current.stdout != latest.stdout
+
+- name: read latest build
+  local_action: command cat {{abs_dir}}/{{project}}/latestbuild
+  register: latestbuild
+
+- name: reset build flags if new git info
+  local_action: shell echo "4" > {{abs_dir}}/{{project}}/build_flag;echo "4" > {{abs_dir}}/{{project}}/deploy_flag;echo "4" > {{abs_dir}}/{{project}}/test_flag
+  when: current.stdout != latest.stdout
+
+- name: write build started
+  local_action: shell echo "2" > {{abs_dir}}/{{project}}/build_flag
+  when: current.stdout != latest.stdout
+
+- name: git pull if different
+  local_action: git repo=git@github.com:YouSee/{{project}}.git dest={{abs_dir}}/projects/{{project}}
+  when: current.stdout != latest.stdout
+
+- name: make current latest if different
+  local_action: command cp {{abs_dir}}/{{project}}/current {{abs_dir}}/{{project}}/latest
+  when: current.stdout != latest.stdout
+
+#- name: write build started
+#  local_action: shell echo "2" > {{abs_dir}}/{{project}}/build_flag
+#  when: current.stdout != latest.stdout
+
+- name: build war
+  local_action: shell cd {{abs_dir}}/projects/{{project}};lein ring uberwar
+  when: current.stdout != latest.stdout
+  register: buildresult
+  ignore_errors: yes
+
+- debug: msg="{{ buildresult.rc }}"
+
+- name: test buildresult
+  local_action: shell echo "1" > {{abs_dir}}/{{project}}/build_flag
+  when: buildresult.rc != 0
+
+- fail: msg="the build failed"
+  when: buildresult.rc != 0
+
+- name: write ok build
+  local_action: shell echo "0" > {{abs_dir}}/{{project}}/build_flag
+  when: buildresult.rc == 0
+
+- name: create build dir
+  local_action: command mkdir -p {{abs_dir}}/build/{{project}}/{{latestbuild.stdout}}
+
+- name: write deploy started
+  local_action: shell echo "2" > {{abs_dir}}/{{project}}/deploy_flag
+  when: current.stdout != latest.stdout
+
+- name: copy war to lib
+  local_action: shell cp {{abs_dir}}/projects/{{project}}/target/{{project}}*.war {{abs_dir}}/build/{{project}}/{{latestbuild.stdout}}/{{project}}.war
+  when: current.stdout != latest.stdout
+
+- name: deploy new version
+  copy: src={{item}} dest=/opt/tomcat7/webapps/{{project}}.war
+  with_fileglob: /{abs_dir}}/build/{{project}}/{{latestbuild.stdout}}/*.war
+  when: current.stdout != latest.stdout
+  register: deployresult
+  ignore_errors: yes
+
+- debug: msg="{{ deployresult }}"
+
+- name: test deployresult
+  local_action: shell echo "1" > {{abs_dir}}/{{project}}/deploy_flag
+  when: deployresult.changed == False
+
+- fail: msg="the deploy failed"
+  when: deployresult.changed == False
+
+- name: write ok deploy
+  local_action: shell echo "0" > {{abs_dir}}/{{project}}/deploy_flag
+  when: current.stdout != latest.stdout
+
+#- name: wait before running tests
+#  wait_for: port=41000 delay=60
+#  when: current.stdout != latest.stdout
+
+- name: write test started
+  local_action: shell echo "2" > {{abs_dir}}/{{project}}/test_flag
+  when: current.stdout != latest.stdout
+
+- name: run tests
+  local_action: shell cd {{abs_dir}}/projects/{{project}};lein expectations > {{abs_dir}}/build/{{project}}/{{latestbuild.stdout}}/testoutput
+  when: current.stdout != latest.stdout
+  ignore_errors: yes
+
+- name: is test ok
+  local_action: shell tail -n 1 {{abs_dir}}/{{project}}/testoutput
+  register: test_result
+
+- name: write ok test
+  local_action: shell echo "0" > {{abs_dir}}/{{project}}/test_flag;
+  when: test_result.stdout.find('0 failures, 0 errors') != -1
+
+- name: write fail test
+  local_action: shell echo "1" > {{abs_dir}}/{{project}}/test_flag
+  when: test_result.stdout.find('0 failures, 0 errors') == -1
+
+- name: write success
+  local_action: shell touch {{abs_dir}}/build/{{project}}/{{latestbuild.stdout}}/success
+  when: test_result.stdout.find('0 failures, 0 errors') != -1

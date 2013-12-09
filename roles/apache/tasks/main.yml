@@ -1,0 +1,6 @@
+---
+# file: roles/apache/tasks/main.yml
+- name: install apache
+  apt: pkg=apache2 state=present
+- name: Install httpd.conf
+  template: src=httpd.conf.j2 dest=/etc/apache2/httpd.conf
