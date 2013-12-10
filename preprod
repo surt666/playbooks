@@ -1,0 +1,6 @@
+[preprod-tomcats]
+172.17.42.1     ansible_ssh_port=49153
+
+[tomcats:children]
+preprod-tomcats
+

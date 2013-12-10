@@ -33,7 +33,7 @@
   register: latestbuild
 
 - name: reset build flags if new git info
-  local_action: shell echo "4" > {{abs_dir}}/{{project}}/build_flag;echo "4" > {{abs_dir}}/{{project}}/deploy_flag;echo "4" > {{abs_dir}}/{{project}}/test_flag
+  local_action: shell echo "4" > {{abs_dir}}/{{project}}/build_flag;echo "4" > {{abs_dir}}/{{project}}/deploy_flag;echo "4" > {{abs_dir}}/{{project}}/test_flag;echo "4" > {{abs_dir}}/{{project}}/preprod_flag;echo "4" > {{abs_dir}}/{{project}}/prod_flag
   when: current.stdout != latest.stdout
 
 - name: write build started
