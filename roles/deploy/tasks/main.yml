@@ -2,8 +2,8 @@
 # file: roles/deploy/tasks/main.yml
 - debug: msg="{{ env }}"
 
-- name: write deploy started
-  local_action: shell echo "2" > {{abs_dir}}/{{project}}/{{env}}_flag
+#- name: write deploy started
+#  local_action: shell echo "2" > {{abs_dir}}/{{project}}/{{env}}_flag
 
 - name: deploy new version
   copy: src={{item}} dest=/opt/tomcat7/webapps/{{project}}.war
